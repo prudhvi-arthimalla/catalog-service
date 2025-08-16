@@ -12,7 +12,7 @@ import java.time.Instant
 
 @Document(collection = "product")
 @Schema(name = "Product", description = "Product document stored in MongoDB")
-data class Product(
+data class ProductDocument(
     @Id
     val id: String? = null,
 
