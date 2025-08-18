@@ -1,4 +1,4 @@
-package com.minimart.catalog.infra.persistence
+package com.minimart.catalog.infra.persistence.document
 
 import io.swagger.v3.oas.annotations.media.Schema
 import org.springframework.data.annotation.CreatedDate
