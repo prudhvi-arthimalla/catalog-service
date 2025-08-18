@@ -3,7 +3,7 @@ package com.minimart.catalog.api.mapper
 import com.minimart.catalog.api.dto.CreateProductRequest
 import com.minimart.catalog.common.utils.Category
 import com.minimart.catalog.domain.model.Product
-import com.minimart.catalog.infra.persistence.ProductDocument
+import com.minimart.catalog.infra.persistence.document.ProductDocument
 
 object ProductMapper {
 
