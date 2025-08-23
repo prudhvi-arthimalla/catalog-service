@@ -2,12 +2,12 @@ package com.minimart.catalog
 
 import com.minimart.catalog.api.dto.CreateProductRequest
 import com.minimart.catalog.api.dto.CreateProductResponse
+import com.minimart.catalog.api.dto.ProductResponse
 import com.minimart.catalog.infra.persistence.repository.ProductRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -19,6 +19,8 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
+import kotlin.random.Random
+import kotlin.test.assertTrue
 
 /**
  * Full-stack integration test:
@@ -34,10 +36,6 @@ import java.math.BigDecimal
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class CreateProductIntegrationTest() {
 
-    companion object {
-        private val log: Logger = LoggerFactory.getLogger(CreateProductIntegrationTest::class.java)
-    }
-
     @LocalServerPort
     private var port: Int = 0
 
@@ -47,40 +45,36 @@ class CreateProductIntegrationTest() {
     @Autowired
     lateinit var productRepository: ProductRepository // your reactive Mongo repository
 
+    val uri = "http://localhost:$port/api/v1/products"
+
+    @BeforeEach
+    fun cleanDb() {
+        // ensure tests are isolated
+        productRepository.deleteAll().block()
+    }
+
     @Test
     fun `createProduct persists entity and returns 201 with body`() {
         // given
-        val req = CreateProductRequest(
-            sku = "SKU-12345",
+        val req = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
             name = "Organic Apple Juice 1L",
             description = "Cold-pressed apple juice",
-            price = BigDecimal("9.99"),
-            stock = 10,
-            category = "GROCERY"
+            price = BigDecimal("9.99")
         )
 
         // when
-        val responseBody = webTestClient
-            .post()
-            .uri("http://localhost:$port/api/v1/products")
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(Mono.just(req), CreateProductRequest::class.java)
-            .exchange().expectStatus().isCreated
-            .expectBody(CreateProductResponse::class.java)
-            .returnResult()
-            .responseBody!!
+        val responseBody = createProduct(req)
 
-        // assert: basic response sanity
+        // then
         assertNotNull(responseBody.id)
         assertNotNull(responseBody.createdAt)
-
-        // assert: actually persisted in Mongo
         val saved = productRepository.findById(responseBody.id).block()
         assertNotNull(saved)
-        assertEquals("SKU-12345", saved!!.sku)
-        assertEquals("Organic Apple Juice 1L", saved.name)
-        assertEquals(BigDecimal("9.99"), saved.price)
-        assertEquals(10, saved.stock)
+        assertEquals(req.sku, saved!!.sku)
+        assertEquals(req.name, saved.name)
+        assertEquals(req.price, saved.price)
+        assertEquals(req.stock, saved.stock)
     }
 
     @Test
@@ -97,7 +91,7 @@ class CreateProductIntegrationTest() {
 
         // when
         webTestClient.post()
-            .uri("http://localhost:$port/api/v1/products")
+            .uri(uri)
             .contentType(MediaType.APPLICATION_JSON)
             .body(Mono.just(invalidRequest), CreateProductRequest::class.java)
             .exchange().expectStatus().isBadRequest
@@ -105,4 +99,126 @@ class CreateProductIntegrationTest() {
             .jsonPath("$.error").isEqualTo("Bad Request")
             .jsonPath("$.path").isEqualTo("/api/v1/products")
     }
+
+    @Test
+    fun `getPrductById returns a single item`() {
+        // given
+        val req = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Apple Juice 1L",
+            description = "Cold-pressed apple juice",
+            price = BigDecimal("9.99")
+        )
+
+        // when
+        val createdProduct = createProduct(req)
+
+        val responseBody = webTestClient.get()
+            .uri(uri + "/${createdProduct.id}")
+            .exchange().expectStatus().isOk
+            .expectBody(ProductResponse::class.java)
+            .returnResult().responseBody!!
+
+        // then
+        assertNotNull(responseBody.id)
+        assertEquals(createdProduct.createdAt.toEpochMilli(), responseBody.createdAt?.toEpochMilli())
+        assertEquals(createdProduct.id, responseBody.id)
+        assertEquals(req.sku, responseBody.sku)
+        assertEquals(req.name, responseBody.name)
+        assertEquals(req.description, responseBody.description)
+        assertEquals(req.price, responseBody.price)
+        assertEquals(req.stock, responseBody.stock)
+        assertEquals(req.category, responseBody.category)
+    }
+
+    @Test
+    fun `getProductById returns 404 when invalid is used`() {
+        val missingId = randomObjectId()
+
+        webTestClient.get()
+            .uri("$uri/$missingId")
+            .exchange()
+            .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `getAllProducts return a list of items`() {
+        // given
+        val req1 = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Apple Juice 1L",
+            description = "Cold-pressed apple juice",
+            price = BigDecimal("9.99")
+        )
+        val req2 = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Orange Juice 1L",
+            description = "Cold-pressed orange juice",
+            price = BigDecimal("10.99")
+        )
+
+        // when
+        val created1 = createProduct(req1)
+        val created2 = createProduct(req2)
+        val items = webTestClient.get()
+            .uri(uri)
+            .exchange()
+            .expectStatus().isOk
+            .expectBodyList(ProductResponse::class.java)
+            .returnResult()
+            .responseBody.orEmpty()
+
+        // then
+        val ids = items.map { it.id }.toSet()
+        assert(ids.containsAll(listOf(created1.id, created2.id)))
+        val first = items.first { it.id == created1.id }
+        assertEquals(created1.id, first.id)
+    }
+
+    @Test
+    fun `getAllProducts return empty list when no products exist`() {
+
+        // when
+        val items = webTestClient.get()
+            .uri(uri)
+            .exchange()
+            .expectStatus().isOk
+            .expectBodyList(ProductResponse::class.java)
+            .returnResult()
+            .responseBody.orEmpty()
+
+        // then
+        assertTrue(items.isEmpty())
+    }
+
+    // helper functions
+    private fun createReq(
+        sku: String,
+        name: String,
+        description: String,
+        price: BigDecimal,
+        stock: Int = 10,
+        category: String = "GROCERY"
+    ) = CreateProductRequest(
+        sku = sku,
+        name = name,
+        description = description,
+        price = price,
+        stock = stock,
+        category = category
+    )
+
+    private fun createProduct(req: CreateProductRequest): CreateProductResponse =
+        webTestClient.post()
+            .uri(uri)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(req)
+            .exchange()
+            .expectStatus().isCreated
+            .expectBody(CreateProductResponse::class.java)
+            .returnResult()
+            .responseBody!!
+
+    private fun randomObjectId(): String =
+        List(24) { "0123456789abcdef".random() }.joinToString("")
 }

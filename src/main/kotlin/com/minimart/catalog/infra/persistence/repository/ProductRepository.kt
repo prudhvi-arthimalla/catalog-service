@@ -1,7 +1,7 @@
 package com.minimart.catalog.infra.persistence.repository
 
-import com.minimart.catalog.domain.model.Product
+import com.minimart.catalog.infra.persistence.document.ProductDocument
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository
 
-interface ProductRepository: ReactiveMongoRepository<Product, String> {
+interface ProductRepository: ReactiveMongoRepository<ProductDocument, String> {
 }
