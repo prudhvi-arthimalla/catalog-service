@@ -1,6 +1,7 @@
 package com.minimart.catalog.api.mapper
 
 import com.minimart.catalog.api.dto.CreateProductRequest
+import com.minimart.catalog.api.dto.ProductResponse
 import com.minimart.catalog.common.utils.Category
 import com.minimart.catalog.domain.model.Product
 import com.minimart.catalog.infra.persistence.document.ProductDocument
@@ -42,4 +43,16 @@ object ProductMapper {
         stock = req.stock,
         category = req.category?.let { runCatching { Category.valueOf(it) }.getOrNull() }
     )
+
+    fun toResponse(productDocument: ProductDocument): ProductResponse =
+        ProductResponse(
+            id = requireNotNull(productDocument.id, { "Product id cannot be null when mapping to response" }),
+            sku = productDocument.sku,
+            name = productDocument.name,
+            description = productDocument.description,
+            price = productDocument.price,
+            stock = productDocument.stock,
+            category = productDocument.category,
+            createdAt = productDocument.createdAt
+        )
 }

@@ -26,11 +26,11 @@ data class ProductDocument(
     val category: String? = null,
 
     @CreatedDate
-    val createdAt: Instant? = null,
+    var createdAt: Instant? = null,
 
     @LastModifiedDate
-    val updatedAt: Instant? = null,
+    var updatedAt: Instant? = null,
 
     @Version
-    val version: Long? = null
+    var version: Long? = null
 )
