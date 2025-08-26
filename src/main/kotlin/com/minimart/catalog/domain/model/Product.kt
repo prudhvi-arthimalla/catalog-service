@@ -1,6 +1,6 @@
 package com.minimart.catalog.domain.model
 
-import com.minimart.catalog.common.utils.Category
+import com.minimart.catalog.infra.utils.Category
 import java.math.BigDecimal
 
 data class Product(

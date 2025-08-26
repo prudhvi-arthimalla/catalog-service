@@ -3,6 +3,7 @@ package com.minimart.catalog
 import com.minimart.catalog.api.dto.CreateProductRequest
 import com.minimart.catalog.api.dto.CreateProductResponse
 import com.minimart.catalog.api.dto.ProductResponse
+import com.minimart.catalog.api.dto.UpdateProductRequest
 import com.minimart.catalog.infra.persistence.repository.ProductRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -20,6 +21,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
 import kotlin.random.Random
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -101,7 +103,7 @@ class CreateProductIntegrationTest() {
     }
 
     @Test
-    fun `getPrductById returns a single item`() {
+    fun `getProductById returns 200 with a single item`() {
         // given
         val req = createReq(
             sku = "SKU-${Random.nextInt(100000, 999999)}",
@@ -139,10 +141,13 @@ class CreateProductIntegrationTest() {
             .uri("$uri/$missingId")
             .exchange()
             .expectStatus().isNotFound
+            .expectBody().jsonPath("$.status").isEqualTo(404)
+            .jsonPath("$.error").isEqualTo("Not Found")
+            .jsonPath("$.path").isEqualTo("/api/v1/products/$missingId")
     }
 
     @Test
-    fun `getAllProducts return a list of items`() {
+    fun `getAllProducts returns 200 with a list of items`() {
         // given
         val req1 = createReq(
             sku = "SKU-${Random.nextInt(100000, 999999)}",
@@ -189,6 +194,169 @@ class CreateProductIntegrationTest() {
 
         // then
         assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun `updateProductById returns 200 with updatedProduct`() {
+        // given
+        val req = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Apple Juice 1L",
+            description = "Cold-pressed apple juice",
+            price = BigDecimal("9.99")
+        )
+        val updateProductRequest = UpdateProductRequest(
+            name = "Juicer",
+            description = "Apple Juice maker",
+            price = BigDecimal("15.99"),
+            stock = 5,
+            category = "HOME"
+        )
+
+        // when
+        val createdProduct = createProduct(req)
+        val updatedProduct = webTestClient.patch()
+            .uri(uri + "/${createdProduct.id}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(updateProductRequest)
+            .exchange()
+            .expectStatus().isOk
+            .expectBody(ProductResponse::class.java)
+            .returnResult()
+            .responseBody!!
+
+        // then
+        assertEquals(updateProductRequest.name, updatedProduct.name)
+        assertEquals(updateProductRequest.description, updatedProduct.description)
+        assertEquals(updateProductRequest.price, updatedProduct.price)
+        assertEquals(updateProductRequest.stock, updatedProduct.stock)
+        assertEquals(updateProductRequest.category, updatedProduct.category)
+    }
+
+    @Test
+    fun `updateProductById returns 200 with product when passed empty UpdatedProductRequest`() {
+        // given
+        val req = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Apple Juice 1L",
+            description = "Cold-pressed apple juice",
+            price = BigDecimal("9.99")
+        )
+        val updateProductRequest = UpdateProductRequest(
+            name = null,
+            description = null,
+            price = null,
+            stock = null,
+            category = null
+        )
+
+        // when
+        val createdProduct = createProduct(req)
+        val updatedProduct = webTestClient.patch()
+            .uri(uri + "/${createdProduct.id}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(updateProductRequest)
+            .exchange()
+            .expectStatus().isOk
+            .expectBody(ProductResponse::class.java)
+            .returnResult()
+            .responseBody!!
+
+        // then
+        assertEquals(req.name, updatedProduct.name)
+        assertEquals(req.description, updatedProduct.description)
+        assertEquals(req.price, updatedProduct.price)
+        assertEquals(req.stock, updatedProduct.stock)
+        assertEquals(req.category, updatedProduct.category)
+    }
+
+    @Test
+    fun `updateProductById returns 404 when false Id is passed`() {
+        // given
+        val missingId = randomObjectId()
+        val updateProductRequest = UpdateProductRequest(
+            name = null,
+            description = null,
+            price = null,
+            stock = null,
+            category = null
+        )
+
+        webTestClient.patch()
+            .uri("$uri/$missingId")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(updateProductRequest)
+            .exchange()
+            .expectStatus().isNotFound
+            .expectBody().jsonPath("$.status").isEqualTo(404)
+            .jsonPath("$.error").isEqualTo("Not Found")
+            .jsonPath("$.path").isEqualTo("/api/v1/products/$missingId")
+    }
+
+    @Test
+    fun `updateProductById return 400 when invalid req is passed`() {
+        // given
+        val req = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Apple Juice 1L",
+            description = "Cold-pressed apple juice",
+            price = BigDecimal("9.99")
+        )
+        val updateProductRequest = UpdateProductRequest(
+            name = "x".repeat(150),  // exceeds @Size(max = 140)
+            description = "x".repeat(2010),  // exceeds @Size(max = 2000)
+            price = BigDecimal("15.99"),
+            stock = -10,  // @Min(0)
+            category = "INVALID_CATEGORY_NAME_EXCEEDING_LENGTH_LIMIT_" + "Y".repeat(100)  // exceeds @Size(max=64)
+        )
+
+        // when
+        val createdProduct = createProduct(req)
+        val updatedProduct = webTestClient.patch()
+            .uri(uri + "/${createdProduct.id}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(updateProductRequest)
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectBody().jsonPath("$.status").isEqualTo(400)
+            .jsonPath("$.error").isEqualTo("Bad Request")
+            .jsonPath("$.path").isEqualTo("/api/v1/products/${createdProduct.id}")
+    }
+
+    @Test
+    fun `deleteProductById return 204 on successful deletion`() {
+        // given
+        val req = createReq(
+            sku = "SKU-${Random.nextInt(100000, 999999)}",
+            name = "Organic Apple Juice 1L",
+            description = "Cold-pressed apple juice",
+            price = BigDecimal("9.99")
+        )
+
+        // when
+        val createdProduct = createProduct(req)
+        webTestClient.delete()
+            .uri(uri + "/${createdProduct.id}")
+            .exchange()
+            .expectStatus().isNoContent
+
+        // then
+        webTestClient.get()
+            .uri(uri + "/${createdProduct.id}")
+            .exchange().expectStatus().isNotFound
+    }
+
+    @Test
+    fun `deleteProductById should return 404 when falseId is passed`() {
+        val missingId = randomObjectId()
+
+        webTestClient.delete()
+            .uri("$uri/$missingId")
+            .exchange()
+            .expectStatus().isNotFound
+            .expectBody().jsonPath("$.status").isEqualTo(404)
+            .jsonPath("$.error").isEqualTo("Not Found")
+            .jsonPath("$.path").isEqualTo("/api/v1/products/$missingId")
     }
 
     // helper functions

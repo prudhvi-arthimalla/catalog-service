@@ -3,6 +3,7 @@ package com.minimart.catalog.domain.service
 import com.minimart.catalog.api.dto.CreateProductRequest
 import com.minimart.catalog.api.dto.CreateProductResponse
 import com.minimart.catalog.api.dto.ProductResponse
+import com.minimart.catalog.api.dto.UpdateProductRequest
 import com.minimart.catalog.api.mapper.ProductMapper
 import com.minimart.catalog.infra.persistence.repository.ProductRepository
 import org.springframework.http.HttpStatus
@@ -29,7 +30,12 @@ class CatalogService(
         // get product by ID from repo and return a mono
         return productRepository.findById(productId)
             .switchIfEmpty(
-                Mono.error(ResponseStatusException(HttpStatus.NOT_FOUND, "Product does not exist with provided productId"))
+                Mono.error(
+                    ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Product does not exist with provided productId"
+                    )
+                )
             )
             .map { product ->
                 ProductMapper.toResponse(product)
@@ -40,5 +46,48 @@ class CatalogService(
         // get all Products from database and return a flux
         return (productRepository.findAll())
             .map(ProductMapper::toResponse)
+    }
+
+    fun updateProductById(productId: String, newProduct: UpdateProductRequest): Mono<ProductResponse> {
+        //get product by ID from database and update it, return a mono
+        return productRepository.findById(productId)
+            .switchIfEmpty(
+                Mono.error(
+                    ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Product does not exist with provided productId"
+                    )
+                )
+            )
+            .flatMap { productDocument ->
+                val updatedProduct = productDocument.copy(
+                    name = newProduct.name ?: productDocument.name,
+                    description = newProduct.description ?: productDocument.description,
+                    price = newProduct.price ?: productDocument.price,
+                    stock = newProduct.stock ?: productDocument.stock,
+                    category = newProduct.category ?: productDocument.category
+                )
+                if (updatedProduct == productDocument) {
+                    Mono.just(ProductMapper.toResponse(productDocument))
+                } else {
+                    productRepository.save(updatedProduct).map(ProductMapper::toResponse)
+                }
+            }
+    }
+
+    fun deleteProductById(productId: String): Mono<Void> {
+        // delete a product from database by its ID
+        return productRepository.findById(productId)
+            .switchIfEmpty(
+                Mono.error(
+                    ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Product does not exist with provided productId"
+                    )
+                )
+            )
+            .flatMap { productDocument ->
+                productRepository.delete(productDocument)
+            }
     }
 }
