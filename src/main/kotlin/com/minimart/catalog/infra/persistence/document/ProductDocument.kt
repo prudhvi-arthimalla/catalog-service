@@ -19,11 +19,11 @@ data class ProductDocument(
     @Indexed(unique = true)
     val sku: String,
 
-    val name: String,
-    val description: String? = null,
-    val price: BigDecimal,
-    val stock: Int,
-    val category: String? = null,
+    var name: String,
+    var description: String? = null,
+    var price: BigDecimal,
+    var stock: Int,
+    var category: String? = null,
 
     @CreatedDate
     var createdAt: Instant? = null,
