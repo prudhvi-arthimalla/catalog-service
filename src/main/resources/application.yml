@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: catalog-service
+  data:
+    mongodb:
+      auto-index-creation: true
+  kafka:
+    bootstrap-servers: kafka:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: 1
+      retries: 3
+      properties:
+        enable:
+          idempotence: true
+
+server:
+  port: 8081
