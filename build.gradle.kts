@@ -36,6 +36,8 @@ dependencies {
     // Avro4k for (de)serialization to GenericRecord
     implementation("com.github.avro-kotlin.avro4k:avro4k-core:2.4.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.1")
+    // Apache kafka
+    implementation("io.confluent:kafka-avro-serializer:7.7.0")
     // Kotlin runtime
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     // Observability
