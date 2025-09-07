@@ -13,60 +13,50 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @Service
-class CatalogService(
-    val productRepository: ProductRepository
-) {
+class CatalogService(val productRepository: ProductRepository) {
 
     fun createProduct(createProductRequest: CreateProductRequest): Mono<CreateProductResponse> {
         // normalize the req and create a domain model object and save it
         val normalizedRequest = ProductMapper.fromCreate(createProductRequest)
-        return productRepository.save(ProductMapper.toDocument(normalizedRequest))
-            .map { product ->
-                CreateProductResponse(id = product.id!!, createdAt = product.createdAt!!)
-            }
+        return productRepository.save(ProductMapper.toDocument(normalizedRequest)).map { product ->
+            CreateProductResponse(id = product.id!!, createdAt = product.createdAt!!)
+        }
     }
 
     fun getProductById(productId: String): Mono<ProductResponse> {
         // get product by ID from repo and return a mono
-        return productRepository.findById(productId)
+        return productRepository
+            .findById(productId)
             .switchIfEmpty(
                 Mono.error(
                     ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Product does not exist with provided productId"
-                    )
-                )
-            )
-            .map { product ->
-                ProductMapper.toResponse(product)
-            }
+                        HttpStatus.NOT_FOUND, "Product does not exist with provided productId")))
+            .map { product -> ProductMapper.toResponse(product) }
     }
 
     fun getAllProducts(): Flux<ProductResponse> {
         // get all Products from database and return a flux
-        return (productRepository.findAll())
-            .map(ProductMapper::toResponse)
+        return (productRepository.findAll()).map(ProductMapper::toResponse)
     }
 
-    fun updateProductById(productId: String, newProduct: UpdateProductRequest): Mono<ProductResponse> {
-        //get product by ID from database and update it, return a mono
-        return productRepository.findById(productId)
+    fun updateProductById(
+        productId: String,
+        newProduct: UpdateProductRequest
+    ): Mono<ProductResponse> {
+        // get product by ID from database and update it, return a mono
+        return productRepository
+            .findById(productId)
             .switchIfEmpty(
                 Mono.error(
                     ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Product does not exist with provided productId"
-                    )
-                )
-            )
+                        HttpStatus.NOT_FOUND, "Product does not exist with provided productId")))
             .flatMap { productDocument ->
-                val updatedProduct = productDocument.copy(
-                    name = newProduct.name ?: productDocument.name,
-                    description = newProduct.description ?: productDocument.description,
-                    price = newProduct.price ?: productDocument.price,
-                    stock = newProduct.stock ?: productDocument.stock,
-                    category = newProduct.category ?: productDocument.category
-                )
+                val updatedProduct =
+                    productDocument.copy(
+                        name = newProduct.name ?: productDocument.name,
+                        description = newProduct.description ?: productDocument.description,
+                        price = newProduct.price ?: productDocument.price,
+                        category = newProduct.category ?: productDocument.category)
                 if (updatedProduct == productDocument) {
                     Mono.just(ProductMapper.toResponse(productDocument))
                 } else {
@@ -77,17 +67,12 @@ class CatalogService(
 
     fun deleteProductById(productId: String): Mono<Void> {
         // delete a product from database by its ID
-        return productRepository.findById(productId)
+        return productRepository
+            .findById(productId)
             .switchIfEmpty(
                 Mono.error(
                     ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Product does not exist with provided productId"
-                    )
-                )
-            )
-            .flatMap { productDocument ->
-                productRepository.delete(productDocument)
-            }
+                        HttpStatus.NOT_FOUND, "Product does not exist with provided productId")))
+            .flatMap { productDocument -> productRepository.delete(productDocument) }
     }
 }

@@ -4,6 +4,7 @@ plugins {
     kotlin("plugin.serialization") version "2.2.10"
 	id("org.springframework.boot") version "3.5.4"
 	id("io.spring.dependency-management") version "1.1.7"
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
 group = "com.minimart"
@@ -69,6 +70,12 @@ kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
 	}
+}
+spotless {
+    kotlin {
+        ktfmt().dropboxStyle()
+        target("src/**/*.kt", "src/**/*.kts")
+    }
 }
 
 tasks.withType<Test> {
