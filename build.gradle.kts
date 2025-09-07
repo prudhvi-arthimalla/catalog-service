@@ -23,6 +23,9 @@ dependencies {
     // Web/API
     implementation("org.springframework.boot:spring-boot-starter-webflux")
 
+    // Spring Kafka
+    implementation("org.springframework.kafka:spring-kafka")
+
     // Data
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 
@@ -57,6 +60,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.springframework.kafka:spring-kafka-test")
 
     // Testing - Integration
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
