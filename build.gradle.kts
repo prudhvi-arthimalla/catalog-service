@@ -1,8 +1,7 @@
 plugins {
-	val kotlinVersion = "1.9.25"
-    kotlin("jvm") version kotlinVersion
-	kotlin("plugin.spring") version kotlinVersion
-    kotlin("plugin.serialization") version kotlinVersion
+    kotlin("jvm") version "2.2.10"
+	kotlin("plugin.spring") version "2.2.10"
+    kotlin("plugin.serialization") version "2.2.10"
 	id("org.springframework.boot") version "3.5.4"
 	id("io.spring.dependency-management") version "1.1.7"
 }
