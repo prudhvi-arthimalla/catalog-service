@@ -1,11 +1,13 @@
 spring:
   application:
-    name: catalog-service
+    name: ${APP_NAME:catalog-service}
   data:
     mongodb:
       auto-index-creation: true
   kafka:
-    bootstrap-servers: kafka:29092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    properties:
+      schema.registry.url: ${SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL:http://localhost:8081}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -14,6 +16,10 @@ spring:
       properties:
         enable:
           idempotence: true
+
+kafka:
+  topics:
+    productRegistered: ${PRODUCT_REGISTERED_TOPIC:catalog.product.registered.v1}
 
 server:
   port: 8081
