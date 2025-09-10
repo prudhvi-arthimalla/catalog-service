@@ -3,9 +3,8 @@ package com.minimart.catalog
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-@SpringBootApplication
-class CatalogServiceApplication
+@SpringBootApplication class CatalogServiceApplication
 
 fun main(args: Array<String>) {
-	runApplication<CatalogServiceApplication>(*args)
+    runApplication<CatalogServiceApplication>(*args)
 }
