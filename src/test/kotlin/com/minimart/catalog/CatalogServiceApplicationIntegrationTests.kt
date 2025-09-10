@@ -6,12 +6,17 @@ import com.minimart.catalog.api.dto.ProductResponse
 import com.minimart.catalog.api.dto.UpdateProductRequest
 import com.minimart.catalog.infra.persistence.repository.ProductRepository
 import java.math.BigDecimal
+import java.time.Duration
+import java.util.Properties
 import kotlin.random.Random
 import kotlin.test.assertTrue
+import org.apache.avro.generic.GenericRecord
+import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.times
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
@@ -36,12 +41,10 @@ import reactor.core.publisher.Mono
 @ContextConfiguration(
     classes = [CatalogServiceApplication::class, TestcontainersConfiguration::class])
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class CreateProductIntegrationTest() {
+class CreateProductIntegrationTest : KafkaTestcontainersConfig() {
 
     @LocalServerPort private var port: Int = 0
-
     @Autowired lateinit var webTestClient: WebTestClient
-
     @Autowired lateinit var productRepository: ProductRepository // your reactive Mongo repository
 
     val uri = "http://localhost:$port/api/v1/products"
@@ -73,6 +76,31 @@ class CreateProductIntegrationTest() {
         assertEquals(req.sku, saved!!.sku)
         assertEquals(req.name, saved.name)
         assertEquals(req.price, saved.price)
+
+        val props =
+            Properties().apply {
+                put("bootstrap.servers", KafkaTestcontainersConfig.redpanda.bootstrapServers)
+                put("group.id", "it-consumer-${System.currentTimeMillis()}")
+                put("auto.offset.reset", "earliest")
+                put(
+                    "key.deserializer",
+                    org.apache.kafka.common.serialization.StringDeserializer::class.java.name)
+                put(
+                    "value.deserializer",
+                    io.confluent.kafka.serializers.KafkaAvroDeserializer::class.java.name)
+                put("schema.registry.url", KafkaTestcontainersConfig.redpanda.schemaRegistryAddress)
+                put("specific.avro.reader", "false")
+            }
+        KafkaConsumer<String, Any>(props).use { consumer ->
+            consumer.subscribe(listOf("catalog.product.registered.v1"))
+            val recs = consumer.poll(Duration.ofSeconds(5))
+            assertTrue(recs.count() >= 1, "no records consumed")
+            val r = recs.last()
+            assertEquals(req.sku, r.key())
+            val gr = r.value() as GenericRecord
+            assertEquals("com.minimart.events.ProductListedForInventoryV1", gr.schema.fullName)
+            assertEquals(req.sku, gr.get("skuCode").toString())
+        }
     }
 
     @Test

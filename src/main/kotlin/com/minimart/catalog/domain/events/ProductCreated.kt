@@ -10,5 +10,4 @@ data class ProductCreated(
     val occurredAtEpochMs: Long,
     val eventId: String,
     val source: String = "catalog-service",
-    val correlationId: String? = null
 )

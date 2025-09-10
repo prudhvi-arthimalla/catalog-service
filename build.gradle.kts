@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.2.10"
 	kotlin("plugin.spring") version "2.2.10"
-    kotlin("plugin.serialization") version "2.2.10"
+    kotlin("plugin.serialization") version "1.7.10"
 	id("org.springframework.boot") version "3.5.4"
 	id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "6.25.0"
@@ -37,8 +37,8 @@ dependencies {
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // Avro4k for (de)serialization to GenericRecord
-    implementation("com.github.avro-kotlin.avro4k:avro4k-core:2.4.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.1")
+    implementation("com.github.avro-kotlin.avro4k:avro4k-core:1.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.0")
     // Apache kafka
     implementation("io.confluent:kafka-avro-serializer:7.7.0")
     // Kotlin runtime
@@ -62,6 +62,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mongodb")
+    testImplementation("org.testcontainers:redpanda:1.20.1")
     // Testing - Runtime
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

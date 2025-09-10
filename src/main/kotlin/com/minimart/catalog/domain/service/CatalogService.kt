@@ -5,7 +5,10 @@ import com.minimart.catalog.api.dto.CreateProductResponse
 import com.minimart.catalog.api.dto.ProductResponse
 import com.minimart.catalog.api.dto.UpdateProductRequest
 import com.minimart.catalog.api.mapper.ProductMapper
+import com.minimart.catalog.domain.events.ProductCreated
 import com.minimart.catalog.infra.persistence.repository.ProductRepository
+import java.util.UUID
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -13,12 +16,23 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @Service
-class CatalogService(val productRepository: ProductRepository) {
+class CatalogService(
+    private val productRepository: ProductRepository,
+    private val eventPublisher: EventPublisher,
+    @param:Value("\${kafka.topics.productRegistered}") private val productRegisteredTopic: String
+) {
 
     fun createProduct(createProductRequest: CreateProductRequest): Mono<CreateProductResponse> {
         // normalize the req and create a domain model object and save it
         val normalizedRequest = ProductMapper.fromCreate(createProductRequest)
         return productRepository.save(ProductMapper.toDocument(normalizedRequest)).map { product ->
+            val event =
+                ProductCreated(
+                    skuCode = product.sku,
+                    occurredAtEpochMs = System.currentTimeMillis(),
+                    eventId = UUID.randomUUID().toString(),
+                )
+            eventPublisher.publish(productRegisteredTopic, product.sku, event)
             CreateProductResponse(id = product.id!!, createdAt = product.createdAt!!)
         }
     }
